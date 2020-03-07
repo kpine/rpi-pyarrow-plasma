@@ -1,4 +1,4 @@
-FROM balenalib/raspberrypi3-debian:buster-build
+FROM balenalib/raspberrypi3-debian:buster-build as builder
 
 ARG MAKE_JOBS=1
 ARG ARROW_VERSION=0.16.0
@@ -67,4 +67,8 @@ WORKDIR /build/arrow/python
 RUN python3 setup.py build_ext bdist_wheel \
  && cp ./dist/pyarrow-*.whl ${ARROW_HOME}
 
-CMD ["/bin/bash"]
+
+FROM scratch
+
+WORKDIR /dist
+COPY --from=builder /build/arrow/python/dist/pyarrow-*.whl /dist
