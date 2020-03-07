@@ -1,7 +1,7 @@
 FROM balenalib/raspberrypi3-debian:buster-build
 
-ARG ARROW_VERSION=0.16.0
 ARG MAKE_JOBS=1
+ARG ARROW_VERSION=0.16.0
 
 RUN install_packages \
         autoconf \
@@ -47,14 +47,24 @@ RUN cmake -G Ninja \
           -DCMAKE_INSTALL_LIBDIR=lib \
           -DCMAKE_INSTALL_PREFIX=${ARROW_HOME} \
           -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-          -DARROW_BUILD_SHARED=OFF \
+          -DARROW_BUILD_STATIC=OFF \
           -DARROW_DEPENDENCY_SOURCE=SYSTEM \
           -DARROW_ENABLE_TIMING_TESTS=OFF \
           -DARROW_HOME=/dist \
           -DARROW_PLASMA=ON \
           -DARROW_PYTHON=ON \
+          -DARROW_RPATH_ORIGIN=ON \
           -DARROW_USE_LD_GOLD=ON \
           .. \
  && cmake --build . --target install
+
+ENV PYARROW_CMAKE_GENERATOR=Ninja
+ENV PYARROW_CMAKE_OPTIONS="-DARROW_USE_LD_GOLD=ON"
+ENV PYARROW_WITH_PLASMA=1
+ENV PYARROW_BUNDLE_ARROW_CPP=1
+
+WORKDIR /build/arrow/python
+RUN python3 setup.py build_ext bdist_wheel \
+ && cp ./dist/pyarrow-*.whl ${ARROW_HOME}
 
 CMD ["/bin/bash"]
