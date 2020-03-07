@@ -1,62 +1,60 @@
 FROM balenalib/raspberrypi3-debian:buster-build
 
 ARG ARROW_VERSION=0.16.0
+ARG MAKE_JOBS=1
 
 RUN install_packages \
-      autoconf \
-      bison \
-      build-essential \
-      cmake \
-      curl \
-      cython3 \
-      flex \
-      libboost-dev \
-      libboost-filesystem-dev \
-      libboost-regex-dev \
-      libboost-system-dev \
-      libgflags-dev \
-      libgmock-dev \
-      libgtest-dev \
-      libssl-dev \
-      python3-dev \
-      python3-numpy \
-      python3-pandas \
-      python3-pip \
-      python3-psutil \
-      python3-pytest \
-      python3-setuptools \
-      python3-six \
-      python3-wheel \
-      rapidjson-dev \
-      unzip \
+        autoconf \
+        bison \
+        ca-certificates \
+        cmake \
+        curl \
+        cython3 \
+        flex \
+        g++ \
+        gcc \
+        libboost-dev \
+        libboost-filesystem-dev \
+        libboost-regex-dev \
+        libboost-system-dev \
+        libjemalloc-dev \
+        libssl-dev \
+        make \
+        ninja-build \
+        pkg-config \
+        python3-dev \
+        python3-numpy \
+        python3-pandas \
+        python3-pip \
+        python3-psutil \
+        python3-setuptools \
+        python3-six \
+        python3-wheel \
+        rapidjson-dev \
+        tzdata \
  && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /build
-RUN wget https://github.com/apache/arrow/archive/apache-arrow-${ARROW_VERSION}.zip \
- && unzip apache-arrow-${ARROW_VERSION}.zip
+WORKDIR /build/arrow
+RUN curl --silent --show-error --fail --location \
+      https://github.com/apache/arrow/archive/apache-arrow-${ARROW_VERSION}.tar.gz \
+  | tar --strip-components=1 -xz
 
-ENV ARROW_HOME=/arrow-dist
-ENV LD_LIBRARY_PATH=${ARROW_HOME}/lib:$LD_LIBRARY_PATH
+ENV ARROW_HOME=/dist
+ENV CMAKE_BUILD_PARALLEL_LEVEL=${MAKE_JOBS}
 
-WORKDIR /build/arrow-apache-arrow-${ARROW_VERSION}/cpp/release
-RUN cmake -DCMAKE_INSTALL_PREFIX=${ARROW_HOME} \       
+WORKDIR /build/arrow/cpp/release
+RUN cmake -G Ninja \
           -DCMAKE_INSTALL_LIBDIR=lib \
+          -DCMAKE_INSTALL_PREFIX=${ARROW_HOME} \
+          -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+          -DARROW_BUILD_SHARED=OFF \
+          -DARROW_DEPENDENCY_SOURCE=SYSTEM \
+          -DARROW_ENABLE_TIMING_TESTS=OFF \
+          -DARROW_HOME=/dist \
           -DARROW_PLASMA=ON \
           -DARROW_PYTHON=ON \
-          -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-	  .. \
- && make -j2 \
- && make install
-
-WORKDIR /build/arrow-apache-arrow-${ARROW_VERSION}/python
-RUN PYARROW_WITH_PLASMA=1 python3 setup.py build_ext --bundle-arrow-cpp bdist_wheel \
- && cp ./dist/pyarrow-${ARROW_VERSION}-cp37-cp37m-linux_armv7l.whl ${ARROW_HOME}
-
-# Test wheel install
-WORKDIR ${ARROW_HOME}
-RUN pip3 install --extra-index-url https://www.piwheels.org/simple \
-      pyarrow-${ARROW_VERSION}-cp37-cp37m-linux_armv7l.whl \
-  && python3 -c 'from pyarrow import compat' \
-  && python3 -c 'import pyarrow.plasma as plasma'
+          -DARROW_USE_LD_GOLD=ON \
+          .. \
+ && cmake --build . --target install
 
 CMD ["/bin/bash"]
