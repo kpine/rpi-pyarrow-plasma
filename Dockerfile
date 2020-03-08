@@ -64,11 +64,8 @@ ENV PYARROW_WITH_PLASMA=1
 ENV PYARROW_BUNDLE_ARROW_CPP=1
 
 WORKDIR /build/arrow/python
-RUN python3 setup.py build_ext bdist_wheel \
- && cp ./dist/pyarrow-*.whl ${ARROW_HOME}
+RUN python3 setup.py build_ext bdist_wheel
 
-
-FROM scratch
-
-WORKDIR /dist
-COPY --from=builder /build/arrow/python/dist/pyarrow-*.whl /dist
+FROM busybox
+COPY --from=builder /build/arrow/python/dist/pyarrow-*.whl /dist/
+CMD /bin/sh
