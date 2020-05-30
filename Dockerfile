@@ -1,7 +1,7 @@
 FROM balenalib/raspberrypi3-debian:buster-build as builder
 
 ARG MAKE_JOBS=1
-ARG ARROW_VERSION=0.16.0
+ARG ARROW_VERSION=0.17.1
 
 RUN install_packages \
         autoconf \
@@ -44,8 +44,9 @@ ENV CMAKE_BUILD_PARALLEL_LEVEL=${MAKE_JOBS}
 
 WORKDIR /build/arrow/cpp/release
 RUN cmake -G Ninja \
-          -DCMAKE_INSTALL_LIBDIR=lib \
           -DCMAKE_INSTALL_PREFIX=${ARROW_HOME} \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          -DCMAKE_SHARED_LINKER_FLAGS="-latomic" \
           -DPYTHON_EXECUTABLE=/usr/bin/python3 \
           -DARROW_BUILD_STATIC=OFF \
           -DARROW_DEPENDENCY_SOURCE=SYSTEM \
@@ -56,7 +57,7 @@ RUN cmake -G Ninja \
           -DARROW_RPATH_ORIGIN=ON \
           -DARROW_USE_LD_GOLD=ON \
           .. \
- && cmake --build . --target install
+ && ninja install
 
 ENV PYARROW_CMAKE_GENERATOR=Ninja
 ENV PYARROW_CMAKE_OPTIONS="-DARROW_USE_LD_GOLD=ON"
